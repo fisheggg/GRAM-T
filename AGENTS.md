@@ -2,3 +2,4 @@
 - At the end of each conversation, create a summarized short report of what you have done in `agent/`, with a title starting in `YY-MM-DD` and what you have done. Make it human readable. Don't create report for simple questions and jobs.
 - Do not use the SELD score when performing the analysis, use F1 score as the main metric, and also consider ER, LE, LR.
 - The previous code are in `archived/`, always ask for permission before you read into the files under this folder.
+- Always ask when you want to create, change or delete files outside of this folder.
