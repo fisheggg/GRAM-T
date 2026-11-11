@@ -28,8 +28,6 @@ def get_identity_from_cfg(cfg):
         cfg.data.target_length,
         cfg.data.cluster,
     )
-    if cfg.data.get("foa_match_finetune", False):
-        identity += "_FOA=sn3dZ"  # keeps converted checkpoints apart from historical ones
     return identity
 
 

@@ -126,8 +126,7 @@ def main(cfg):
         nr_samples_per_audio = cfg.data.samples_per_audio,
         sr = cfg.data.sr,
         with_noise = cfg.data.with_noise,
-        with_rir = cfg.data.with_rir,
-        foa_match_finetune = cfg.data.get("foa_match_finetune", False),
+        with_rir = cfg.data.with_rir
     )
     seed_everything(cfg.seed, workers=True)
     trainer.fit(network_instance, data, ckpt_path=cfg.get("ckpt_path", None))

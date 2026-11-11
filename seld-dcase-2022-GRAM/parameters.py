@@ -35,10 +35,10 @@ def get_params(argv='1'):
         max_audio_len_s=60,
         nb_mel_bins=128,
 
-        # FOA CONVENTION (legacy N3D/ch1-up checkpoints only; keep both False for
-        # checkpoints pretrained with data.foa_match_finetune, which match STARSS)
-        sn3d_to_n3d=False,            # scale STARSS dipoles by sqrt(3) before RMS normalization; features go to <combination>_n3d
-        swap_vertical_to_ch1=False,   # feature order [0,2,1,3,5,4,6] before the encoder
+        # FOA CONVENTION: match STARSS (SN3D, Z-up) to GRAM pretraining (N3D, ch1-up).
+        # Applied to dataset='foa' only; set both False to reproduce historical runs.
+        sn3d_to_n3d=True,            # scale STARSS dipoles by sqrt(3) before RMS normalization; features go to <combination>_n3d
+        swap_vertical_to_ch1=True,   # feature order [0,2,1,3,5,4,6] before the encoder
 
         # MODEL TYPE
         multi_accdoa=False,  # False - Single-ACCDOA or True - Multi-ACCDOA

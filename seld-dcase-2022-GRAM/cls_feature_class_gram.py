@@ -16,6 +16,7 @@ import math
 import wave
 import contextlib
 import torchaudio
+from foa_convention import scale_dipoles_sn3d_to_n3d
 import torch 
 from torch import Tensor
 from typing import Optional, Callable
@@ -160,7 +161,7 @@ class FeatureClass:
         self._dataset = params['dataset']
         self._eps = 1e-8
         self._nb_channels = 4
-        self._sn3d_to_n3d = params.get('sn3d_to_n3d', False)
+        self._sn3d_to_n3d = params.get('sn3d_to_n3d', False) and self._dataset == 'foa'
 
         self._multi_accdoa = params['multi_accdoa']
         self._nb_mel_bins = params['nb_mel_bins']
@@ -210,9 +211,7 @@ class FeatureClass:
         audio, fs = torchaudio.load(audio_path)
         audio = audio[:self._nb_channels, :]
         if self._sn3d_to_n3d:
-            # SN3D -> N3D on the waveform, not on cached features: mel filters mix bins.
-            audio = audio.clone()
-            audio[1:4] *= math.sqrt(3.0)
+            audio = scale_dipoles_sn3d_to_n3d(audio)
         # Make the audio normalized.
         audio = self._normalize_audio(audio, -14.0)
         return audio, fs
