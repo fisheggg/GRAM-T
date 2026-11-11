@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 import webdataset as wds
 from .dataset_functions import pre_process_audio, pre_process_noise
 from .scene_module import generate_scenes 
+from .foa_convention import match_finetune_foa
 import torch 
 import multiprocessing as mp 
 import queue
@@ -89,8 +90,9 @@ class NoiseDataManager:
 class RIRDataManager:
     """Manages RIR data loading with multiprocessing in the main process."""
     
-    def __init__(self, rir_data_dir: str, buffer_size: int = 500, num_workers: int = 4):
+    def __init__(self, rir_data_dir: str, buffer_size: int = 500, num_workers: int = 4, foa_match_finetune: bool = False):
         self.rir_data_dir = rir_data_dir
+        self.foa_match_finetune = foa_match_finetune
         self.buffer_size = buffer_size
         self.num_workers = num_workers
         self.manager = mp.Manager()
@@ -101,8 +103,11 @@ class RIRDataManager:
         
     def _worker(self):
         """Worker process to load RIR data."""
+        foa_match_finetune = self.foa_match_finetune
         def to_torch(sample):
-            return torch.from_numpy(sample[0]).float()
+            rirs = torch.from_numpy(sample[0]).float()
+            # Source and noise RIRs: N3D ch1-up -> SN3D Z-up (STARSS convention).
+            return match_finetune_foa(rirs) if foa_match_finetune else rirs
         
         shuffle_buffer = 100 
         dataset = (wds.WebDataset(self.rir_data_dir,
@@ -174,6 +179,7 @@ class WebAudioDataModule(pl.LightningDataModule):
         cache_size: int = 1000,
         with_noise : bool = True,
         with_rir : bool = True,
+        foa_match_finetune : bool = False,
         **kwargs
     ):
         """Initialize the data module with shared noise data."""
@@ -195,7 +201,7 @@ class WebAudioDataModule(pl.LightningDataModule):
             self.noise_loader = NoiseDataManager(base_noise_dir).start()
 
         if self.with_rir:
-            self.rir_loader = RIRDataManager(rir_data_dir).start()
+            self.rir_loader = RIRDataManager(rir_data_dir, foa_match_finetune=foa_match_finetune).start()
         
     
     def _augment_sample(self, sample):

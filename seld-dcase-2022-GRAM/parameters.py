@@ -35,6 +35,11 @@ def get_params(argv='1'):
         max_audio_len_s=60,
         nb_mel_bins=128,
 
+        # FOA CONVENTION (legacy N3D/ch1-up checkpoints only; keep both False for
+        # checkpoints pretrained with data.foa_match_finetune, which match STARSS)
+        sn3d_to_n3d=False,            # scale STARSS dipoles by sqrt(3) before RMS normalization; features go to <combination>_n3d
+        swap_vertical_to_ch1=False,   # feature order [0,2,1,3,5,4,6] before the encoder
+
         # MODEL TYPE
         multi_accdoa=False,  # False - Single-ACCDOA or True - Multi-ACCDOA
         thresh_unify=15,    # Required for Multi-ACCDOA only. Threshold of unification for inference in degrees.

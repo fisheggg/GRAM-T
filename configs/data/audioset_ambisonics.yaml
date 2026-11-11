@@ -20,3 +20,7 @@ cluster: False
 clean_data_ratio : 0.0
 with_noise : True
 with_rir : True
+
+#FOA convention: convert N3D/ch1-up RIRs to SN3D/Z-up (ACN, as STARSS23) at load time.
+#Set False only to reproduce historical checkpoints.
+foa_match_finetune : True

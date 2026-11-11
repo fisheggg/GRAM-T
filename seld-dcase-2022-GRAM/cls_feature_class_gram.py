@@ -160,6 +160,7 @@ class FeatureClass:
         self._dataset = params['dataset']
         self._eps = 1e-8
         self._nb_channels = 4
+        self._sn3d_to_n3d = params.get('sn3d_to_n3d', False)
 
         self._multi_accdoa = params['multi_accdoa']
         self._nb_mel_bins = params['nb_mel_bins']
@@ -208,6 +209,10 @@ class FeatureClass:
     def _load_audio(self, audio_path):
         audio, fs = torchaudio.load(audio_path)
         audio = audio[:self._nb_channels, :]
+        if self._sn3d_to_n3d:
+            # SN3D -> N3D on the waveform, not on cached features: mel filters mix bins.
+            audio = audio.clone()
+            audio[1:4] *= math.sqrt(3.0)
         # Make the audio normalized.
         audio = self._normalize_audio(audio, -14.0)
         return audio, fs
@@ -580,12 +585,14 @@ class FeatureClass:
         return os.path.join(
             self._feat_label_dir,
             '{}'.format('{}_salsa'.format(self._dataset_combination) if (self._dataset=='mic' and self._use_salsalite) else self._dataset_combination)
+            + ('_n3d' if self._sn3d_to_n3d else '')  # separate cache for converted features
         )
 
     def get_unnormalized_feat_dir(self):
         return os.path.join(
             self._feat_label_dir,
             '{}'.format('{}_salsa'.format(self._dataset_combination) if (self._dataset=='mic' and self._use_salsalite) else self._dataset_combination)
+            + ('_n3d' if self._sn3d_to_n3d else '')  # separate cache for converted features
         )
 
     def get_label_dir(self):

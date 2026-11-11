@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from IPython import embed
 from src.model import GRAMT
 from src.patching import PatchStrategy
+from src.data_modules.foa_convention import swap_vertical_into_ch1
 import matplotlib.pyplot as plt
 
 def plot_fbank(fbank, title=None, save_path=None, **kwargs):
@@ -237,6 +238,10 @@ class GRAM(torch.nn.Module):
     def __init__(self, weights, in_feat_shape, out_shape, params):
         super().__init__()
         self.nb_classes = params['unique_classes']
+        self.swap_vertical_to_ch1 = params.get('swap_vertical_to_ch1', False)
+        if 'FOA=sn3dZ' in str(weights) and (self.swap_vertical_to_ch1 or params.get('sn3d_to_n3d', False)):
+            raise ValueError('Checkpoint already uses the STARSS FOA convention; '
+                             'set sn3d_to_n3d and swap_vertical_to_ch1 to False')
         self.model = GRAMT(
             model_size="base",
             patch_strategy=PatchStrategy(
@@ -276,6 +281,8 @@ class GRAM(torch.nn.Module):
     def forward(self, x):
         '''input: (batch_size, mic_channels, time_steps, mel_bins)'''
         from einops import rearrange
+        if self.swap_vertical_to_ch1:
+            x = swap_vertical_into_ch1(x)
         x = self.model.get_audio_representation(x, strategy="raw")
         x = rearrange(x, "B Seq (Embedding F) -> B Seq Embedding F", F = self.model.grid_size[0])
         # Take the mean over the frequency dimension
