@@ -1,0 +1,4 @@
+- Conda env is `gram-t` (Python 3.9, PyTorch 2.5.1), at `/projects/ec12/jinyueg/conda/envs/gram-t/bin/python`. Do not `pip` or `conda install` into that shared env.
+- At the end of each conversation, create a summarized short report of what you have done in `agent/`, with a title starting in `YY-MM-DD` and what you have done. Make it human readable. Don't create report for simple questions and jobs.
+- Do not use the SELD score when performing the analysis, use F1 score as the main metric, and also consider ER, LE, LR.
+- The previous code are in `archived/`, always ask for permission before you read into the files under this folder.

@@ -100,17 +100,17 @@ def main(cfg):
 
     base_dir=cfg.data.base_data_dir
     if float(cfg.data.data_ratio) == 0.01:
-        base_dir = "/gpfs/work3/2/managed_datasets/hf_cache_dir/datasets--agkphysics--AudioSet/snapshots/5a2fa42a1506470d275a47ff8e1fdac5b364e6ef/data/unbal_train{000..015}.tar" 
+        base_dir = "/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/AudioSet/data/unbal_train{000..015}.tar" 
     elif float(cfg.data.data_ratio) == 0.05: 
-        base_dir = "/gpfs/work3/2/managed_datasets/hf_cache_dir/datasets--agkphysics--AudioSet/snapshots/5a2fa42a1506470d275a47ff8e1fdac5b364e6ef/data/unbal_train{000..043}.tar"
+        base_dir = "/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/AudioSet/data/unbal_train{000..043}.tar"
     elif float(cfg.data.data_ratio) == 0.1: 
-        base_dir = "/gpfs/work3/2/managed_datasets/hf_cache_dir/datasets--agkphysics--AudioSet/snapshots/5a2fa42a1506470d275a47ff8e1fdac5b364e6ef/data/unbal_train{000..086}.tar"
+        base_dir = "/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/AudioSet/data/unbal_train{000..086}.tar"
     elif float(cfg.data.data_ratio) == 0.25: 
-        base_dir = "/gpfs/work3/2/managed_datasets/hf_cache_dir/datasets--agkphysics--AudioSet/snapshots/5a2fa42a1506470d275a47ff8e1fdac5b364e6ef/data/unbal_train{000..217}.tar"
+        base_dir = "/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/AudioSet/data/unbal_train{000..217}.tar"
     elif float(cfg.data.data_ratio) == 0.5: 
-        base_dir = "/gpfs/work3/2/managed_datasets/hf_cache_dir/datasets--agkphysics--AudioSet/snapshots/5a2fa42a1506470d275a47ff8e1fdac5b364e6ef/data/unbal_train{000..434}.tar"
+        base_dir = "/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/AudioSet/data/unbal_train{000..434}.tar"
     elif float(cfg.data.data_ratio) == 1.0:     
-        base_dir = "/gpfs/work3/2/managed_datasets/hf_cache_dir/datasets--agkphysics--AudioSet/snapshots/5a2fa42a1506470d275a47ff8e1fdac5b364e6ef/data/unbal_train{000..869}.tar"
+        base_dir = "/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/AudioSet/data/unbal_train{000..869}.tar"
     else:
         raise Exception("Unknown")
 
