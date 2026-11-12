@@ -32,6 +32,6 @@ echo "config:     $SELD_CONFIG"
 echo "checkpoint: $GRAM_CKPT"
 
 cd seld-dcase-2022-GRAM
-# Each run has its own feature cache (foa_dev or foa_dev_n3d) under <run_dir>/features.
+# Features come from the shared x86 cache (scripts/seld_features_x86.sh); this step only checks it exists.
 python3 -u batch_feature_extraction.py "$TASK_ID"
 python3 -u train_seldnet.py "$TASK_ID" "$(basename "$SELD_CONFIG" .yaml)_${SLURM_JOB_ID:-local}"

@@ -63,6 +63,25 @@ Real STARSS23 metadata rows have six columns (frame, class, source, azimuth, ele
 
 The old Olivia cache, made by the Stage 3 code (load → resample → normalize), matches the Fox features to about 1e-7. `_load_audio` now does the same: it resamples to `fs` with the default settings of `torchaudio.functional.resample`, as in `data/convert_starss_sr.py`, before the SN3D→N3D scaling and the RMS normalization. The queued final-SELD-A0/A1 jobs pick this up when they start. The GPU feature comparison of the fixed code (job 2848101) had not run at commit time.
 
+## Pretraining data loader on Olivia
+Real pretraining stalled before its first batch, with every process idle. fox-replication's own code did the same today, although it ran on 29 October. The data, audio decoding and the noise/RIR loader processes all work, as does the data module with 16 workers on its own; training also works with 0 workers. The deadlock comes from forking DataLoader workers inside the running training process.
+- **Loader:** `src/data_modules/WebAudioDataModule.py` is now fox-replication's version (the archived freeze fix, commit `190efd8`): single-threaded noise/RIR loader processes, loader errors reported, and a stall timeout. It is picklable: a worker gets only the queue handles, never the loader processes or the Lightning trainer.
+- **Worker start:** `configs/data/audioset_ambisonics.yaml` sets `num_workers: 16` and `mp_context: forkserver`. `train.py` passes both to the data module. With forkserver (or spawn), 16 workers train at about 0.5–1 s per step; fox-replication ran at 0.74 s per step.
+- **Time limit:** pretraining requests 4 days (`scripts/train.sh`). fox-replication's 200k-step runs took 41–45 h.
+
+## Shared SELD feature cache
+- **Cache:** all SELD runs read one cache, built once on an x86 CPU node with torch 2.5.1 (`scripts/seld_features_x86.sh` → `seld-dcase-2022-GRAM/build_feature_cache.py`), in `data/SELD_combined/features_x86/`: `foa_dev`, `foa_dev_n3d` and `foa_dev_label`.
+- **Agreement with Fox:** the native cache is bit-identical to the Fox features for 1278 of 1368 recordings. 90 recordings (85 synthetic) differ by up to 6.7e-2, which re-extraction on Olivia cannot avoid; labels are identical. Both formats come from this one extraction (your choice), so each fix-off/fix-on pair differs only in the format conversion.
+- **Safety:** `batch_feature_extraction.py` refuses to run without the cache's completion marker, so no job can extract ARM features into it. On the ARM GPU env (torch 2.7.1), the same code differs from Fox by up to 1e-3 relative on every file.
+
+## Scoring fix (jackknife point values)
+`get_SELD_Results(..., is_jackknife=True)` reused the all-file variables inside its leave-one-out loop. It therefore returned the estimate without the last listed file instead of the 78-file score; this is where Fox's "historical77" came from. It now returns the all-file values, with unchanged confidence intervals. `train_seldnet.py` also reports the 77-file score without `fold4_room15_mix010.csv` (`test77/*`). On Fox's B2 predictions, both conventions reproduce fox-replication's metrics exactly (seeds 42/43/44).
+
+## Checks (GPU, 2026-11-12)
+- **Determinism:** two runs with the same seed give identical weights for pretraining (`torch.compile`, bf16, deterministic algorithms) and for SELD on the shared cache.
+- **SPR:** all four pretexts run forward and backward (feature/spr).
+- **End-to-end SELD:** a 3-epoch run through `scripts/seld.sh` on the N3D cache loaded all 352/352 encoder weights, then trained, validated, tested and logged to wandb. One epoch takes about 5 min.
+
 ## Seeding and determinism
 - **Pretraining** (`train.py`): `seed_everything(cfg.seed, workers=True)` is now the first line of `main()`. It used to run after the model and data module were built, so model initialization and the noise/RIR loader processes were unseeded. The new `trainer.deterministic: True` (`configs/trainer/default_trainer.yaml`) makes Lightning use deterministic algorithms with no cuDNN benchmark. `CUBLAS_WORKSPACE_CONFIG=:4096:8` is set before CUDA starts.
 - **SELD** (`train_seldnet.set_seed_and_determinism`): seeds `random`/`numpy`/`torch` with `seed=42`, once, before data and model, as fox-replication did. With `deterministic=True` it also enables deterministic algorithms and cuDNN deterministic mode, with no benchmark. Both are new defaults in `parameters.py`.

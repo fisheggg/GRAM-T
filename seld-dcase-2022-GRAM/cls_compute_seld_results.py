@@ -115,6 +115,9 @@ class ComputeSELDResults(object):
         ER, F, LE, LR, seld_scr, classwise_results = eval.compute_seld_scores()
 
         if is_jackknife:
+            # The leave-one-out loop below reuses ER, F, ...; keep the all-file values to return them.
+            # (Upstream returned the last leave-one-out estimate, i.e. the score without the last listed file.)
+            full_values, full_classwise = [ER, F, LE, LR, seld_scr], classwise_results
             global_values = [ER, F, LE, LR, seld_scr]
             if len(classwise_results):
                 global_values.extend(classwise_results.reshape(-1).tolist())
@@ -143,7 +146,8 @@ class ComputeSELDResults(object):
                            partial_estimates=partial_estimates[:, i],
                            significance_level=0.05
                            )
-            return [ER, conf_interval[0]], [F, conf_interval[1]], [LE, conf_interval[2]], [LR, conf_interval[3]], [seld_scr, conf_interval[4]], [classwise_results, np.array(conf_interval)[5:].reshape(5,13,2) if len(classwise_results) else []]
+            ER, F, LE, LR, seld_scr = full_values
+            return [ER, conf_interval[0]], [F, conf_interval[1]], [LE, conf_interval[2]], [LR, conf_interval[3]], [seld_scr, conf_interval[4]], [full_classwise, np.array(conf_interval)[5:].reshape(5,13,2) if len(full_classwise) else []]
       
         else:      
             return ER, F, LE, LR, seld_scr, classwise_results

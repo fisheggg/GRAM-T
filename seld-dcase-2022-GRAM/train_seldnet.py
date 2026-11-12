@@ -21,6 +21,27 @@ import torch.optim as optim
 plot.switch_backend('agg')
 from cls_compute_seld_results import ComputeSELDResults, reshape_3Dto2D
 from SELD_evaluation_metrics import distance_between_cartesian_coordinates
+import SELD_evaluation_metrics
+
+# Recording left out of the historical Fox point estimates ("historical77"; fox-replication-20261029).
+HISTORICAL_OMITTED = 'fold4_room15_mix010.csv'
+
+
+def score_without(score_obj, folder, params, omitted=HISTORICAL_OMITTED):
+    """ER, F, LE, LR, SELD over all prediction files except `omitted` (Fox's historical77 convention)."""
+    metrics = SELD_evaluation_metrics.SELDMetrics(nb_classes=params['unique_classes'],
+                                                  doa_threshold=params['lad_doa_thresh'], average=params['average'])
+    names = sorted(f for f in os.listdir(folder) if f.endswith('.csv'))
+    if omitted not in names:
+        raise ValueError('{} not among the {} predictions in {}'.format(omitted, len(names), folder))
+    for name in names:
+        if name == omitted:
+            continue
+        pred = score_obj._feat_cls.load_output_format_file(os.path.join(folder, name))
+        pred = score_obj._feat_cls.convert_output_format_cartesian_to_polar(pred)
+        metrics.update_seld_scores(score_obj._feat_cls.segment_labels(pred, score_obj._ref_labels[name][1]),
+                                   score_obj._ref_labels[name][0])
+    return metrics.compute_seld_scores()[:5]
 import seldnet_model 
 
 def get_accdoa_labels(accdoa_in, nb_classes):
@@ -403,7 +424,12 @@ def main(argv):
 
         use_jackknife=True
         test_ER, test_F, test_LE, test_LR, test_seld_scr, classwise_test_scr = score_obj.get_SELD_Results(dcase_output_test_folder, is_jackknife=use_jackknife )
+        h77 = dict(zip(['ER', 'F', 'LE', 'LR', 'SELD'], map(float, score_without(score_obj, dcase_output_test_folder, params))))
+        print('Historical77 (without {}): ER {:0.4f}, F {:0.2f}, LE {:0.2f}, LR {:0.2f}, SELD {:0.4f}'.format(
+            HISTORICAL_OMITTED, h77['ER'], 100 * h77['F'], h77['LE'], 100 * h77['LR'], h77['SELD']))
         if run is not None:
+            for key, value in h77.items():
+                run.summary['test77/' + key] = value
             for key, value in [('ER', test_ER), ('F', test_F), ('LE', test_LE), ('LR', test_LR), ('SELD', test_seld_scr)]:
                 if use_jackknife:
                     run.summary['test/' + key] = value[0]

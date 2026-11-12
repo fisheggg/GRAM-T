@@ -131,6 +131,9 @@ def get_params(argv='1'):
         params['dataset_year'] = '2022'  # STARSS22/23: 13 classes, train folds 1-3, val/test fold 4
         params['batch_size'] = 512
         params['micro_batch_size'] = 32  # gradient accumulation; same update as one 512 batch
+        # Shared feature cache built once on x86 (scripts/seld_features_x86.sh): foa_dev (SN3D), foa_dev_n3d, foa_dev_label.
+        params['feat_label_dir'] = '/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/SELD_combined/features_x86'
+        params['shared_feature_cache'] = True  # batch_feature_extraction.py requires the cache instead of extracting
 
     elif argv == '999':
         print("QUICK TEST MODE\n")
@@ -153,7 +156,6 @@ def get_params(argv='1'):
     # Per-run settings from the Slurm script (scripts/seld.sh) or the run config.
     run_dir = os.environ.get('SELD_RUN_DIR') or run_cfg.get('run_dir')
     if run_dir:
-        params['feat_label_dir'] = os.path.join(run_dir, 'features')
         params['model_dir'] = os.path.join(run_dir, 'models')
         params['dcase_output_dir'] = os.path.join(run_dir, 'predictions')
     if os.environ.get('SELD_FOA_FIX') in ('0', '1'):

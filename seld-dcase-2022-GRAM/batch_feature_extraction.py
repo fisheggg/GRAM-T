@@ -1,5 +1,6 @@
 # Extracts the features, labels, and normalizes the development and evaluation split features.
 
+import os
 import cls_feature_class_gram
 import parameters
 import sys
@@ -14,6 +15,16 @@ def main(argv):
     # use parameter set defined by user
     task_id = '1' if len(argv) < 2 else argv[1]
     params = parameters.get_params(task_id)
+
+    if params.get('shared_feature_cache'):
+        # Features come from the shared x86 cache (build_feature_cache.py); never extract into it here.
+        dev_feat_cls = cls_feature_class_gram.FeatureClass(params)
+        feat_dir = dev_feat_cls.get_unnormalized_feat_dir()
+        marker = feat_dir + '.complete.json'
+        if not os.path.isfile(marker):
+            raise FileNotFoundError('Shared feature cache not built: {} (run scripts/seld_features_x86.sh)'.format(marker))
+        print('Using shared feature cache {} ({})'.format(feat_dir, open(marker).read().strip()))
+        return
 
     # -------------- Extract features and labels for development set -----------------------------
     dev_feat_cls = cls_feature_class_gram.FeatureClass(params)

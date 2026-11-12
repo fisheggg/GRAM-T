@@ -5,7 +5,7 @@
 task_id: '20'
 experiment_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-A0
 pretrain_step: 200000          # encoder: <experiment_dir>/pretrain/**/step=200000.ckpt
-run_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-A0/seld_fix0   # features/, models/, predictions/
+run_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-A0/seld_fix0   # models/, predictions/ (features: shared x86 cache, see parameters.py task 20)
 
 wandb:
   entity: ritmo

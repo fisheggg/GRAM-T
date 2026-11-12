@@ -145,7 +145,9 @@ def main(cfg):
         nr_samples_per_audio = cfg.data.samples_per_audio,
         sr = cfg.data.sr,
         with_noise = cfg.data.with_noise,
-        with_rir = cfg.data.with_rir
+        with_rir = cfg.data.with_rir,
+        num_workers = int(cfg.data.get("num_workers", 16)),  # as fox-replication; DataLoader worker processes
+        mp_context = cfg.data.get("mp_context", None),  # DataLoader worker start method (None = fork)
     )
     trainer.fit(network_instance, data, ckpt_path=cfg.get("ckpt_path", None))
 

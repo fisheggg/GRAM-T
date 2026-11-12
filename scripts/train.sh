@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
 #SBATCH --gpus-per-node=1
-#SBATCH --time=168:00:00
+#SBATCH --time=96:00:00
 #SBATCH --job-name=GRAMTi
 #SBATCH --output=slurm_output_%A_%a.out
 #SBATCH --array=0

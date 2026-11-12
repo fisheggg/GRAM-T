@@ -20,3 +20,8 @@ cluster: False
 clean_data_ratio : 0.0
 with_noise : True
 with_rir : True
+
+# DataLoader workers: 16, started with forkserver. Plain fork from the running training process
+# deadlocks on Olivia since 2026-11 (works with 0 workers, or with forkserver/spawn).
+num_workers : 16
+mp_context : forkserver
