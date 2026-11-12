@@ -70,7 +70,11 @@ def get_params(argv='1'):
 
         # METRIC
         average = 'macro',        # Supports 'micro': sample-wise average and 'macro': class-wise average
-        lad_doa_thresh=20
+        lad_doa_thresh=20,
+
+        # SELD seed: random/numpy/torch seeded once before data and model (as fox-replication); None = unseeded
+        seed=42,
+        deterministic=True,  # torch.use_deterministic_algorithms(True), cuDNN deterministic, no benchmark
     )
 
     # ########### User defined parameters ##############

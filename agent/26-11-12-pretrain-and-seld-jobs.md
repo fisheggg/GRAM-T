@@ -58,6 +58,12 @@ The upstream SELD protocol already matches the archived `stage2_legacy` protocol
 ## Scoring fix for STARSS23 metadata
 Real STARSS23 metadata rows have six columns (frame, class, source, azimuth, elevation, distance). The fork's scoring read six-column rows as Cartesian, so ground truth became [az, el, dist] against 2-D predictions. That crashes `least_distance_between_gt_pred` at the first validation (epoch 3); a GPU test with perfect predictions reproduced it. The archived `with_distance=True` fix is ported to `cls_feature_class_gram.load_output_format_file` and used for ground truth in `cls_compute_seld_results.py`. Afterwards the same perfect predictions score ER 0, with F = 9/13 and LE = 4/13 × 180°, which is the macro average when 4 of the 13 classes are absent from the two test files. Label extraction was not affected, because it reads az/el by index. The queued jobs final-SELD-A0/A1 pick up the fix because they run the working tree when they start.
 
+## Seeding and determinism
+- **Pretraining** (`train.py`): `seed_everything(cfg.seed, workers=True)` is now the first line of `main()`. It used to run after the model and data module were built, so model initialization and the noise/RIR loader processes were unseeded. The new `trainer.deterministic: True` (`configs/trainer/default_trainer.yaml`) makes Lightning use deterministic algorithms with no cuDNN benchmark. `CUBLAS_WORKSPACE_CONFIG=:4096:8` is set before CUDA starts.
+- **SELD** (`train_seldnet.set_seed_and_determinism`): seeds `random`/`numpy`/`torch` with `seed=42`, once, before data and model, as fox-replication did. With `deterministic=True` it also enables deterministic algorithms and cuDNN deterministic mode, with no benchmark. Both are new defaults in `parameters.py`.
+- **Not deterministic:** pretraining still draws noise and RIRs from one shared queue read by 16 DataLoader workers, so the pairing of clips with RIRs and noise depends on worker timing.
+- **Not yet verified:** the GPU check (repeated runs, weight hashes; job 2847606) had not run at commit time. final-pt-A0 (2846118) is held until it passes.
+
 ## Differences from archived Stage 3 that remain
 - SELD uses the upstream GRAM readout (mean over frequency), not Stage 3's `adjacent` readout.
 - The best epoch is still chosen by upstream's validation SELD score. Compare results using F1 first, then ER, LE and LR.

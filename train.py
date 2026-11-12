@@ -1,4 +1,8 @@
 import gc
+import os
+
+# Deterministic cuBLAS needs this before the first CUDA call (used when trainer.deterministic is on).
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 import hydra
 import pytorch_lightning as pl
@@ -23,11 +27,13 @@ torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = True
 
 
-# Enable cuDNN benchmarking for consistent input sizes
+# Enable cuDNN benchmarking for consistent input sizes (turned off when trainer.deterministic is on)
 torch.backends.cudnn.benchmark = True
 
 @hydra.main(version_base=None, config_path="./configs", config_name="base")
 def main(cfg):
+    # Seed first, so model initialization and the data loader processes are seeded too.
+    seed_everything(cfg.seed, workers=True)
     identity = get_identity_from_cfg(cfg)
     log_dir = f"{cfg.save_dir}/tb_logs_naturalistic_mixing_ambisonics" if cfg.data.in_channels == 7 else f"{cfg.save_dir}/tb_logs_naturalistic_mixing"
     save_dir = f"{cfg.save_dir}/saved_models_naturalistic_mixing_ambisonics/{identity.replace('_', '/')}" if cfg.data.in_channels == 7 else f"{cfg.save_dir}/saved_models_naturalistic_mixing/{identity.replace('_', '/')}"
@@ -62,7 +68,8 @@ def main(cfg):
         max_epochs=cfg.trainer.epochs,
         max_steps=cfg.trainer.steps // cfg.trainer.num_gpus,
         precision=cfg.trainer.precision,
-        deterministic=False,
+        deterministic=bool(cfg.trainer.get("deterministic", False)),
+        benchmark=False if cfg.trainer.get("deterministic", False) else None,
         callbacks=[checkpoint_callback, lr_monitor],
         gradient_clip_val=5,
         gradient_clip_algorithm="norm",
@@ -140,7 +147,6 @@ def main(cfg):
         with_noise = cfg.data.with_noise,
         with_rir = cfg.data.with_rir
     )
-    seed_everything(cfg.seed, workers=True)
     trainer.fit(network_instance, data, ckpt_path=cfg.get("ckpt_path", None))
 
 

@@ -3,6 +3,9 @@
 #
 
 import os
+# Deterministic cuBLAS needs this before the first CUDA call (used when params['deterministic'] is on).
+os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
+import random
 import sys
 import numpy as np
 import matplotlib.pyplot as plot
@@ -159,6 +162,19 @@ def test_epoch(data_generator, model, criterion, dcase_output_folder, params, de
     return test_loss
 
 
+def set_seed_and_determinism(params):
+    """Seed random/numpy/torch once before data and model; optionally force deterministic GPU algorithms."""
+    if params.get('seed') is not None:
+        seed = int(params['seed'])
+        random.seed(seed); np.random.seed(seed); torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
+        print('Seed: {}'.format(seed))
+    if params.get('deterministic'):
+        torch.use_deterministic_algorithms(True)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        print('Deterministic algorithms: on')
+
+
 def train_epoch(data_generator, optimizer, model, criterion, params, device, i):
     nb_train_batches, train_loss = 0, 0.
     model.train()
@@ -218,6 +234,7 @@ def main(argv):
     # use parameter set defined by user
     task_id = '1' if len(argv) < 2 else argv[1]
     params = parameters.get_params(task_id)
+    set_seed_and_determinism(params)
 
     job_id = 1 if len(argv) < 3 else argv[-1]
 

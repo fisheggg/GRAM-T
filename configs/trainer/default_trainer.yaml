@@ -5,3 +5,5 @@ steps: 500000
 precision: bf16-mixed
 num_gpus : 1
 compile_modules : True
+# Deterministic GPU algorithms (torch.use_deterministic_algorithms, no cuDNN benchmark)
+deterministic: True
