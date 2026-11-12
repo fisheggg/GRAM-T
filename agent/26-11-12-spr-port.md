@@ -1,6 +1,6 @@
 # 26-11-12 Add SPR pretraining from `archived/GRAM-T` (branch `feature/spr`)
 
-`feature/spr` branches from `fix/ambisonics-format` and was fast-forwarded to `32709f3` (the scoring fix). It adds the simplest SPR setup: GRAM-T pretraining with the SPR (spatial pseudo-label regression) objective. Downstream evaluation uses the existing SELD pipeline. The branch is checked out as a worktree at `.worktrees/feature-spr` (git-excluded), because the main checkout must stay on `fix/ambisonics-format` for the queued final-A0 SELD jobs.
+`feature/spr` is one SPR commit on top of `fix/ambisonics-format` (`261b638`). It adds the simplest SPR setup: GRAM-T pretraining with the SPR (spatial pseudo-label regression) objective. Downstream evaluation uses the existing SELD pipeline. The branch is checked out as a worktree at `.worktrees/feature-spr` (git-excluded), because the main checkout must stay on `fix/ambisonics-format` for the queued final-A0 SELD jobs.
 
 ## How to run
 ```bash
@@ -11,7 +11,18 @@ sbatch scripts/train.sh --config-name spr
 The fork's SELD (`scripts/seld.sh` with a `configs/seld/*.yaml` whose `experiment_dir` is `runs/spr`) loads an SPR checkpoint like a GRAM-T one. The extra SPR-head weights are ignored.
 
 ## SPR experiment groups B0–E0
-Each group is one SPR pretraining run and two SELD runs, mirroring final-A0. Submit a group with `bash scripts/submit_spr.sh <G>`; the SELD jobs depend on the pretraining job (`afterok`). Nothing has been submitted yet.
+Each group is one SPR pretraining run and two SELD runs, mirroring final-A0. Submit a group with `bash scripts/submit_spr.sh <G>`; the SELD jobs depend on the pretraining job (`afterok`).
+
+Submitted on 2026-11-12 from this worktree at `48496aa`, after the smoke, determinism and end-to-end SELD checks:
+
+| Group | Pretraining | SELD fix off | SELD fix on |
+|---|---|---|---|
+| B0 | final-pt-B0 2852514 | final-SELD-B0 2852515 | final-SELD-B1 2852516 |
+| C0 | final-pt-C0 2852517 | final-SELD-C0 2852518 | final-SELD-C1 2852519 |
+| D0 | final-pt-D0 2852520 | final-SELD-D0 2852521 | final-SELD-D1 2852522 |
+| E0 | final-pt-E0 2852523 | final-SELD-E0 2852524 | final-SELD-E1 2852525 |
+
+The jobs run the code in `.worktrees/feature-spr` when they start, so leave that worktree on `48496aa` until all of them have started.
 
 | Group | Pretext | Pretraining (job / wandb run) | SELD, `correct_ambi_format: false` | SELD, `correct_ambi_format: true` |
 |---|---|---|---|---|
