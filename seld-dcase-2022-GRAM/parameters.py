@@ -136,20 +136,31 @@ def get_params(argv='1'):
         print('ERROR: unknown argument {}'.format(argv))
         exit()
 
-    # Per-run settings from the Slurm script (scripts/seld.sh).
-    if os.environ.get('SELD_RUN_DIR'):
-        run_dir = os.environ['SELD_RUN_DIR']
+    # A run config (configs/seld/*.yaml, via $SELD_CONFIG) replaces the task-id defaults.
+    run_cfg = {}
+    if os.environ.get('SELD_CONFIG'):
+        import yaml
+        with open(os.environ['SELD_CONFIG']) as f:
+            run_cfg = yaml.safe_load(f)
+        if str(run_cfg['task_id']) != argv:
+            raise ValueError('{} is for task id {}, not {}'.format(os.environ['SELD_CONFIG'], run_cfg['task_id'], argv))
+        params.update(run_cfg.get('params', {}))
+
+    # Per-run settings from the Slurm script (scripts/seld.sh) or the run config.
+    run_dir = os.environ.get('SELD_RUN_DIR') or run_cfg.get('run_dir')
+    if run_dir:
         params['feat_label_dir'] = os.path.join(run_dir, 'features')
         params['model_dir'] = os.path.join(run_dir, 'models')
         params['dcase_output_dir'] = os.path.join(run_dir, 'predictions')
     if os.environ.get('SELD_FOA_FIX') in ('0', '1'):
         params['sn3d_to_n3d'] = params['swap_vertical_to_ch1'] = os.environ['SELD_FOA_FIX'] == '1'
     params['pretrained_gram_ckpt'] = os.environ.get('GRAM_CKPT', params['pretrained_gram_ckpt'])
-    # wandb logging is on only when the Slurm script names the run.
-    params['wandb_name'] = os.environ.get('SELD_WANDB_NAME')
-    params['wandb_group'] = os.environ.get('SELD_WANDB_GROUP')
-    params['wandb_entity'] = os.environ.get('WANDB_ENTITY', 'ritmo')
-    params['wandb_project'] = os.environ.get('WANDB_PROJECT', 'ambi-ssl')
+    # wandb logging is on only when the run has a name.
+    wandb_cfg = run_cfg.get('wandb', {})
+    params['wandb_name'] = os.environ.get('SELD_WANDB_NAME', wandb_cfg.get('name'))
+    params['wandb_group'] = os.environ.get('SELD_WANDB_GROUP', wandb_cfg.get('group'))
+    params['wandb_entity'] = os.environ.get('WANDB_ENTITY', wandb_cfg.get('entity', 'ritmo'))
+    params['wandb_project'] = os.environ.get('WANDB_PROJECT', wandb_cfg.get('project', 'ambi-ssl'))
     if os.environ.get('SELD_QUICK_TEST') in ('0', '1'):
         params['quick_test'] = os.environ['SELD_QUICK_TEST'] == '1'
     if 'dataset_year' not in params:

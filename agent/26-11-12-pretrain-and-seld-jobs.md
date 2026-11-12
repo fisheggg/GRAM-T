@@ -1,7 +1,7 @@
 # 26-11-12 One GRAM-T pretraining run plus two downstream SELD jobs (branch `fix/ambisonics-format`)
 
 ## What was submitted
-`bash scripts/submit_pretrain_seld.sh` submits three Slurm jobs. Two earlier submissions were cancelled before they started: 2845897–2845899 for renaming, and 2846079–2846081 to add wandb. The current jobs:
+`bash scripts/submit_pretrain_seld.sh` submits three Slurm jobs, configured by the yaml files below. Two earlier submissions were cancelled before they started: 2845897–2845899 for renaming, and 2846079–2846081 to add wandb. The current jobs:
 
 | Slurm name (ID) | What it runs | Starts |
 |---|---|---|
@@ -10,6 +10,17 @@
 | `final-SELD-A1` (2846120) | `sn3d_to_n3d` + `swap_vertical_to_ch1` | after pretrain succeeds (`afterok`) |
 
 The settings follow the archived Stage 3 runs A0 and B0. They share the same GRAM pretraining, and their SELD differs only in the STARSS format. Outputs go to `/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-A0/` with the subfolders `pretrain/`, `seld_fix0/` and `seld_fix1/`. Each SELD run has its own feature cache, model and predictions. Slurm logs are in `slurm_log/`.
+
+## Config files
+All run settings are in yaml:
+- [`configs/final_pt_A0.yaml`](../configs/final_pt_A0.yaml): standalone Hydra config, used as `sbatch scripts/train.sh --config-name final_pt_A0`.
+- [`configs/seld/final_SELD_A0.yaml`](../configs/seld/final_SELD_A0.yaml) and [`final_SELD_A1.yaml`](../configs/seld/final_SELD_A1.yaml): differ only in `sn3d_to_n3d`/`swap_vertical_to_ch1`, the wandb name and the run folder. Each sets the task id, experiment folder, pretraining step, run folder, wandb run and SELD parameters. `parameters.py` loads it through `$SELD_CONFIG`, and its `params` block replaces the task-id defaults. Usage: `sbatch --job-name=final-SELD-A0 scripts/seld.sh configs/seld/final_SELD_A0.yaml`.
+
+`scripts/seld.sh` now takes the yaml path, and `scripts/submit_pretrain_seld.sh` uses the three files.
+
+The queued jobs (2846118–2846120) were submitted before the yaml files existed, so they use the old command line and environment variables. Checked against those jobs:
+- the composed Hydra config of `final_pt_A0.yaml` is identical to job 2846118's;
+- each SELD yaml gives a parameter dictionary identical to its queued job's.
 
 ## wandb
 - **Runs**: the runs log to `ritmo/ambi-ssl` under their Slurm job names, grouped as `final-A0`.
@@ -21,7 +32,7 @@ The settings follow the archived Stage 3 runs A0 and B0. They share the same GRA
 ## Code changes
 - `train.py`, `configs/base.yaml`: the optional WandbLogger described above.
 - `scripts/train.sh`: passes extra Hydra overrides through (`"$@"`). Without arguments it runs the same command as before.
-- `scripts/seld.sh` (new): finds `step=200000.ckpt` in the pretraining folder, extracts features, then trains SELD with task id 20.
+- `scripts/seld.sh` (new): reads a `configs/seld/*.yaml`, finds the pretraining checkpoint, extracts features, then trains SELD.
 - `scripts/submit_pretrain_seld.sh` (new): submits the three jobs with the dependency.
 - `seld-dcase-2022-GRAM/parameters.py`:
   - new task id `20`: Olivia `SELD_combined` (STARSS23 + 1,200 synthetic recordings), 13 classes, effective batch 512 built from micro-batches of 32, lr 1e-4, 100 epochs;

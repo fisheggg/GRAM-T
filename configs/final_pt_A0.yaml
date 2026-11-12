@@ -1,0 +1,31 @@
+# final-pt-A0: GRAM-T ambisonic pretraining shared by final-SELD-A0 and final-SELD-A1.
+# Settings follow archived Stage 3 A0/B0 (plain GRAM reconstruction, 200k steps, batch 80, seed 42).
+# Run: sbatch scripts/train.sh --config-name final_pt_A0
+defaults:
+  - data: audioset_ambisonics
+  - optimizer: adamW          # lr 2e-4, betas (0.9, 0.95), weight decay 0.01
+  - trainer: default_trainer
+  - patching: frame           # 16 mel x 8 frame patches, 200 per clip
+  - _self_
+
+model: GRAM-T
+model_size: base
+use_mwmae_decoder: True
+seed: 42
+save_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-A0/pretrain
+
+data:
+  clean_data_ratio: 0.0
+  mask_patch: 160
+
+trainer:
+  steps: 200000
+  batch_size: 80
+
+wandb:
+  enabled: true
+  entity: ritmo
+  project: ambi-ssl
+  name: final-pt-A0
+  group: final-A0
+  mode: online

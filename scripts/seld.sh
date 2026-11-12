@@ -10,30 +10,28 @@
 #SBATCH --job-name=seld
 #SBATCH --output=slurm_log/seld-%j.out
 
-# Downstream SELD (STARSS23 + synth, task id 20) from one GRAM pretraining run.
-# Submit from the repo root: sbatch scripts/seld.sh <experiment dir> <fix 0|1>
-#   fix=0: STARSS as is (SN3D, Z on ch2), as upstream GRAM-T
-#   fix=1: sn3d_to_n3d + swap_vertical_to_ch1 (match the pretraining RIR convention)
-# The checkpoint is <experiment dir>/pretrain/**/step=${STEP:-200000}.ckpt; GRAM_CKPT overrides it.
+# Downstream SELD from one GRAM pretraining run, configured by a run yaml in configs/seld/.
+# Submit from the repo root: sbatch --job-name=final-SELD-A0 scripts/seld.sh configs/seld/final_SELD_A0.yaml
+# The yaml gives the experiment folder, pretraining step, output folder, wandb run and all SELD
+# parameters. The encoder is <experiment_dir>/pretrain/**/step=<pretrain_step>.ckpt; GRAM_CKPT overrides it.
 set -euo pipefail
-EXP_DIR=$1
-FIX=$2
-[[ $FIX == 0 || $FIX == 1 ]] || { echo "fix must be 0 or 1, got '$FIX'" >&2; exit 1; }
+export SELD_CONFIG=$(realpath "$1")
+
+source /cluster/projects/nn8104k/homes/jinyueg/conda/activate-gram-t-gpu.sh
+read -r TASK_ID EXP_DIR STEP < <(python3 -c "
+import sys, yaml; c = yaml.safe_load(open(sys.argv[1]))
+print(c['task_id'], c['experiment_dir'], c['pretrain_step'])" "$SELD_CONFIG")
 
 if [[ -z ${GRAM_CKPT:-} ]]; then
-    mapfile -t ckpts < <(find "$EXP_DIR/pretrain" -name "step=${STEP:-200000}.ckpt")
+    mapfile -t ckpts < <(find "$EXP_DIR/pretrain" -name "step=${STEP}.ckpt")
     [[ ${#ckpts[@]} -eq 1 ]] || { echo "expected 1 checkpoint, found ${#ckpts[@]}: ${ckpts[*]:-}" >&2; exit 1; }
     GRAM_CKPT=${ckpts[0]}
 fi
-export GRAM_CKPT SELD_FOA_FIX=$FIX SELD_RUN_DIR="$EXP_DIR/seld_fix$FIX"
-# wandb run = Slurm job name (e.g. final-SELD-A0), group = experiment folder name; SELD_WANDB_NAME= disables it
-export SELD_WANDB_NAME=${SELD_WANDB_NAME-${SLURM_JOB_NAME:-}} SELD_WANDB_GROUP=${SELD_WANDB_GROUP:-$(basename "$EXP_DIR")}
-export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 MPLBACKEND=agg
+export GRAM_CKPT TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 MPLBACKEND=agg
+echo "config:     $SELD_CONFIG"
 echo "checkpoint: $GRAM_CKPT"
-echo "output:     $SELD_RUN_DIR"
 
-source /cluster/projects/nn8104k/homes/jinyueg/conda/activate-gram-t-gpu.sh
 cd seld-dcase-2022-GRAM
-# Each run has its own feature cache (foa_dev or foa_dev_n3d) under $SELD_RUN_DIR/features.
-python3 -u batch_feature_extraction.py 20
-python3 -u train_seldnet.py 20 "fix${FIX}_${SLURM_JOB_ID:-local}"
+# Each run has its own feature cache (foa_dev or foa_dev_n3d) under <run_dir>/features.
+python3 -u batch_feature_extraction.py "$TASK_ID"
+python3 -u train_seldnet.py "$TASK_ID" "$(basename "$SELD_CONFIG" .yaml)_${SLURM_JOB_ID:-local}"
