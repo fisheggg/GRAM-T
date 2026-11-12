@@ -19,4 +19,5 @@ export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 source /cluster/projects/nn8104k/homes/jinyueg/conda/activate-gram-t-gpu.sh
 
 # Binaural RIRs (data=audioset) are not on Olivia; only the ambisonic setup has data here.
-python3 train.py data=audioset_ambisonics data.clean_data_ratio=0.0 patching=frame data.mask_patch=160
+# Extra Hydra overrides can be appended: sbatch scripts/train.sh trainer.steps=200000
+python3 train.py data=audioset_ambisonics data.clean_data_ratio=0.0 patching=frame data.mask_patch=160 "$@"

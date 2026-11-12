@@ -5,7 +5,8 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning import seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from omegaconf import OmegaConf
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from src.data_modules import WebAudioDataModule
 from src.model import GRAMT
@@ -30,10 +31,21 @@ def main(cfg):
     identity = get_identity_from_cfg(cfg)
     log_dir = f"{cfg.save_dir}/tb_logs_naturalistic_mixing_ambisonics" if cfg.data.in_channels == 7 else f"{cfg.save_dir}/tb_logs_naturalistic_mixing"
     save_dir = f"{cfg.save_dir}/saved_models_naturalistic_mixing_ambisonics/{identity.replace('_', '/')}" if cfg.data.in_channels == 7 else f"{cfg.save_dir}/saved_models_naturalistic_mixing/{identity.replace('_', '/')}"
-    logger = TensorBoardLogger(
+    logger = [TensorBoardLogger(
         log_dir,
         name=identity.replace("_", "/"),
-    )
+    )]
+    wandb_cfg = cfg.get("wandb")
+    if wandb_cfg is not None and wandb_cfg.enabled:
+        logger.append(WandbLogger(
+            entity=wandb_cfg.entity,
+            project=wandb_cfg.project,
+            name=wandb_cfg.name or identity,
+            group=wandb_cfg.group,
+            mode=wandb_cfg.mode,
+            save_dir=cfg.save_dir,
+            config=OmegaConf.to_container(cfg, resolve=True),
+        ))
     checkpoint_callback = ModelCheckpoint(
         dirpath=save_dir,
         filename="{step}",

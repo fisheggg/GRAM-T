@@ -7,7 +7,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from IPython import embed
 from src.model import GRAMT
 from src.patching import PatchStrategy
 from foa_convention import swap_vertical_into_ch1
@@ -258,7 +257,13 @@ class GRAM(torch.nn.Module):
             weights,
             map_location=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         )
-        self.model.load_state_dict(weights["state_dict"], strict=False)
+        result = self.model.load_state_dict(weights["state_dict"], strict=False)
+        # strict=False hides key mismatches; fail if the pretrained weights did not load.
+        n_keys = len(self.model.state_dict())
+        print('GRAM checkpoint: {}/{} model keys loaded, {} unexpected'.format(
+            n_keys - len(result.missing_keys), n_keys, len(result.unexpected_keys)))
+        if len(result.missing_keys) > 0.1 * n_keys:
+            raise RuntimeError('Pretrained GRAM weights mostly missing: {}'.format(result.missing_keys[:10]))
         self.model.requires_grad_(True)
         self.model.train()
         # Downsample the output hz from 80ms per time-step to 100ms per time step.

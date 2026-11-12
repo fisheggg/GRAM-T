@@ -16,7 +16,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 plot.switch_backend('agg')
-from IPython import embed
 from cls_compute_seld_results import ComputeSELDResults, reshape_3Dto2D
 from SELD_evaluation_metrics import distance_between_cartesian_coordinates
 import seldnet_model 
@@ -168,13 +167,17 @@ def train_epoch(data_generator, optimizer, model, criterion, params, device, i):
         data, target = torch.tensor(data).to(device).float(), torch.tensor(target).to(device).float()
         optimizer.zero_grad()
 
-        # process the batch of data based on chosen mode
-        output = model(data)
-        loss = criterion(output, target)
-        loss.backward()
+        # process the batch of data based on chosen mode; micro-batches accumulate
+        # into one update equal to the full batch (mean loss, no BatchNorm in GRAM)
+        micro = params.get('micro_batch_size') or data.shape[0]
+        batch_loss = 0.
+        for data_mb, target_mb in zip(data.split(micro), target.split(micro)):
+            loss = criterion(model(data_mb), target_mb) * (data_mb.shape[0] / data.shape[0])
+            loss.backward()
+            batch_loss += loss.item()
         optimizer.step()
-        
-        train_loss += loss.item()
+
+        train_loss += batch_loss
         nb_train_batches += 1
         if params['quick_test'] and nb_train_batches == 4:
             break
@@ -221,17 +224,17 @@ def main(argv):
     # Training setup
     train_splits, val_splits, test_splits = None, None, None
     if params['mode'] == 'dev':
-        if '2020' in params['dataset_dir']:
+        if params['dataset_year'] == '2020':
             test_splits = [1]
             val_splits = [2]
             train_splits = [[3, 4, 5, 6]]
 
-        elif '2021' in params['dataset_dir']:
+        elif params['dataset_year'] == '2021':
             test_splits = [6]
             val_splits = [5]
             train_splits = [[1, 2, 3, 4]]
 
-        elif '2022' in params['dataset_dir']:
+        elif params['dataset_year'] == '2022':
             test_splits = [[4]]
             val_splits = [[4]]
             train_splits = [[1, 2, 3]] 
@@ -273,7 +276,9 @@ def main(argv):
 
         # Collect i/o data size and load model configuration
         data_in, data_out = data_gen_train.get_data_sizes()
-        weights = "/projects/0/prjs1338/saved_models_rebuttal_ambisonics/Data=AudioSet/InChannels=7/WithNoise=None/Model=GRAM-T/ModelSize=base/MWMAE=True/NrGpus=1/LR=0.0002/BatchSize=96/NrSamples=16/PosLearn=False/Patching=frame/MaskPatch=160/InputL=200/Cluster=False/step=60000.ckpt"
+        weights = params['pretrained_gram_ckpt']
+        if not weights or not os.path.isfile(weights):
+            raise FileNotFoundError('Pretrained GRAM checkpoint not found: {} (set GRAM_CKPT)'.format(weights))
         model = seldnet_model.GRAM(weights, data_in, data_out, params).to(device)
         if params['finetune_mode']:
             print('Running in finetuning mode. Initializing the model to the weights - {}'.format(params['pretrained_model_weights']))
@@ -294,6 +299,13 @@ def main(argv):
         # Initialize evaluation metric class
         score_obj = ComputeSELDResults(params)
 
+        run = None
+        if params.get('wandb_name'):
+            import wandb
+            run = wandb.init(entity=params['wandb_entity'], project=params['wandb_project'],
+                             name=params['wandb_name'], group=params['wandb_group'],
+                             dir=params['model_dir'], config=params)
+
         # start training
         best_val_epoch = -1
         best_ER, best_F, best_LE, best_LR, best_seld_scr = 1., 0., 180., 0., 9999 
@@ -313,6 +325,8 @@ def main(argv):
             start_time = time.time()
             train_loss = train_epoch(data_gen_train, optimizer, model, criterion, params, device, i)
             train_time = time.time() - start_time
+            if run is not None:
+                run.log({'epoch': epoch_cnt, 'train/loss': train_loss}, step=epoch_cnt)
 
             # ---------------------------------------------------------------------
             # VALIDATION
@@ -326,6 +340,10 @@ def main(argv):
 
                 val_time = time.time() - start_time
                 
+                if run is not None:
+                    run.log({'val/loss': val_loss, 'val/F': val_F, 'val/ER': val_ER, 'val/LE': val_LE,
+                             'val/LR': val_LR, 'val/SELD': val_seld_scr}, step=epoch_cnt)
+
                 if val_seld_scr <= best_seld_scr:
                     best_val_epoch, best_ER, best_F, best_LE, best_LR, best_seld_scr = epoch_cnt, val_ER, val_F, val_LE, val_LR, val_seld_scr
                     torch.save(model.state_dict(), model_name)
@@ -368,6 +386,16 @@ def main(argv):
 
         use_jackknife=True
         test_ER, test_F, test_LE, test_LR, test_seld_scr, classwise_test_scr = score_obj.get_SELD_Results(dcase_output_test_folder, is_jackknife=use_jackknife )
+        if run is not None:
+            for key, value in [('ER', test_ER), ('F', test_F), ('LE', test_LE), ('LR', test_LR), ('SELD', test_seld_scr)]:
+                if use_jackknife:
+                    run.summary['test/' + key] = value[0]
+                    run.summary['test/' + key + '_ci_low'], run.summary['test/' + key + '_ci_high'] = value[1][0], value[1][1]
+                else:
+                    run.summary['test/' + key] = value
+            run.summary['test/loss'] = test_loss
+            run.summary['best_val_epoch'] = best_val_epoch
+            run.finish()
         print('\nTest Loss')
         print('SELD score (early stopping metric): {:0.2f} {}'.format(test_seld_scr[0] if use_jackknife else test_seld_scr, '[{:0.2f}, {:0.2f}]'.format(test_seld_scr[1][0], test_seld_scr[1][1]) if use_jackknife else ''))
         print('SED metrics: Error rate: {:0.2f} {}, F-score: {:0.1f} {}'.format(test_ER[0]  if use_jackknife else test_ER, '[{:0.2f}, {:0.2f}]'.format(test_ER[1][0], test_ER[1][1]) if use_jackknife else '', 100* test_F[0]  if use_jackknife else 100* test_F, '[{:0.2f}, {:0.2f}]'.format(100* test_F[1][0], 100* test_F[1][1]) if use_jackknife else ''))

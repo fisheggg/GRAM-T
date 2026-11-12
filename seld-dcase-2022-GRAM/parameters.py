@@ -3,6 +3,8 @@
 # Ideally, do not change the values of the default parameters. Create separate cases with unique <task-id> as seen in
 # the code below (if-else loop) and use them. This way you can easily reproduce a configuration on a later time.
 
+import os
+
 
 def get_params(argv='1'):
     print("SET: {}".format(argv))
@@ -12,6 +14,9 @@ def get_params(argv='1'):
     
         finetune_mode = False,  # Finetune on existing model, requires the pretrained model path set - pretrained_model_weights
         pretrained_model_weights = 'models/1_1_foa_dev_split6_model.h5', 
+
+        # GRAM pretraining checkpoint for the encoder (overridden by $GRAM_CKPT)
+        pretrained_gram_ckpt = '/projects/0/prjs1338/saved_models_rebuttal_ambisonics/Data=AudioSet/InChannels=7/WithNoise=None/Model=GRAM-T/ModelSize=base/MWMAE=True/NrGpus=1/LR=0.0002/BatchSize=96/NrSamples=16/PosLearn=False/Patching=frame/MaskPatch=160/InputL=200/Cluster=False/step=60000.ckpt',
 
         # INPUT PATH
         # dataset_dir='DCASE2020_SELD_dataset/',  # Base folder containing the foa/mic and metadata folders
@@ -112,6 +117,17 @@ def get_params(argv='1'):
         params['use_salsalite'] = True
         params['multi_accdoa'] = True
 
+    elif argv == '20':
+        # Olivia: archived Stage 3 SELD settings (stage2_legacy protocol).
+        print("OLIVIA: FOA + ACCDOA, STARSS23 + synth, effective batch 512\n")
+        params['quick_test'] = False
+        params['dataset'] = 'foa'
+        params['multi_accdoa'] = False
+        params['dataset_dir'] = '/cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/SELD_combined'
+        params['dataset_year'] = '2022'  # STARSS22/23: 13 classes, train folds 1-3, val/test fold 4
+        params['batch_size'] = 512
+        params['micro_batch_size'] = 32  # gradient accumulation; same update as one 512 batch
+
     elif argv == '999':
         print("QUICK TEST MODE\n")
         params['quick_test'] = True
@@ -120,16 +136,35 @@ def get_params(argv='1'):
         print('ERROR: unknown argument {}'.format(argv))
         exit()
 
+    # Per-run settings from the Slurm script (scripts/seld.sh).
+    if os.environ.get('SELD_RUN_DIR'):
+        run_dir = os.environ['SELD_RUN_DIR']
+        params['feat_label_dir'] = os.path.join(run_dir, 'features')
+        params['model_dir'] = os.path.join(run_dir, 'models')
+        params['dcase_output_dir'] = os.path.join(run_dir, 'predictions')
+    if os.environ.get('SELD_FOA_FIX') in ('0', '1'):
+        params['sn3d_to_n3d'] = params['swap_vertical_to_ch1'] = os.environ['SELD_FOA_FIX'] == '1'
+    params['pretrained_gram_ckpt'] = os.environ.get('GRAM_CKPT', params['pretrained_gram_ckpt'])
+    # wandb logging is on only when the Slurm script names the run.
+    params['wandb_name'] = os.environ.get('SELD_WANDB_NAME')
+    params['wandb_group'] = os.environ.get('SELD_WANDB_GROUP')
+    params['wandb_entity'] = os.environ.get('WANDB_ENTITY', 'ritmo')
+    params['wandb_project'] = os.environ.get('WANDB_PROJECT', 'ambi-ssl')
+    if os.environ.get('SELD_QUICK_TEST') in ('0', '1'):
+        params['quick_test'] = os.environ['SELD_QUICK_TEST'] == '1'
+    if 'dataset_year' not in params:
+        params['dataset_year'] = next((y for y in ('2020', '2021', '2022') if y in params['dataset_dir']), None)
+
     feature_label_resolution = int(params['label_hop_len_s'] // params['hop_len_s'])
     params['feature_sequence_length'] = params['label_sequence_length'] * feature_label_resolution
     params['t_pool_size'] = [feature_label_resolution, 1, 1]     # CNN time pooling
     params['patience'] = int(params['nb_epochs'])     # Stop training if patience is reached
 
-    if '2020' in params['dataset_dir']:
-        params['unique_classes'] = 14 
-    elif '2021' in params['dataset_dir']:
+    if params['dataset_year'] == '2020':
+        params['unique_classes'] = 14
+    elif params['dataset_year'] == '2021':
         params['unique_classes'] = 12
-    elif '2022' in params['dataset_dir']:
+    elif params['dataset_year'] == '2022':
         params['unique_classes'] = 13
 
     for key, value in params.items():

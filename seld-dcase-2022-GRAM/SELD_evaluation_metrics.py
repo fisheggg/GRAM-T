@@ -15,7 +15,6 @@ import numpy as np
 
 eps = np.finfo(np.float64).eps
 from scipy.optimize import linear_sum_assignment
-from IPython import embed
 
 
 class SELDMetrics(object):

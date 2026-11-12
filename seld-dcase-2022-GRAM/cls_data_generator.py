@@ -4,7 +4,6 @@
 import os
 import numpy as np
 import cls_feature_class_gram as cls_feature_class
-from IPython import embed
 from collections import deque
 import random
 from einops import rearrange

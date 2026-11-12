@@ -4,7 +4,6 @@ import cls_feature_class_gram as cls_feature_class
 import parameters
 import numpy as np
 from scipy import stats
-from IPython import embed
 
 def jackknife_estimation(global_value, partial_estimates, significance_level=0.05):
     """
