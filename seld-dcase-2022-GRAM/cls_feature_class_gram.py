@@ -433,7 +433,7 @@ class FeatureClass:
                 np.save(os.path.join(self._label_dir, '{}.npy'.format(wav_filename.split('.')[0])), label_mat)
 
     # -------------------------------  DCASE OUTPUT  FORMAT FUNCTIONS -------------------------------
-    def load_output_format_file(self, _output_format_file):
+    def load_output_format_file(self, _output_format_file, with_distance=False):
         """
         Loads DCASE output format csv file and returns it in dictionary format
 
@@ -449,6 +449,8 @@ class FeatureClass:
             if _frame_ind not in _output_dict:
                 _output_dict[_frame_ind] = []
             if len(_words) == 5: #polar coordinates 
+                _output_dict[_frame_ind].append([int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4])])
+            elif with_distance: # STARSS23 metadata: polar coordinates with distance; distance is discarded
                 _output_dict[_frame_ind].append([int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4])])
             elif len(_words) == 6: # cartesian coordinates
                 _output_dict[_frame_ind].append([int(_words[1]), int(_words[2]), float(_words[3]), float(_words[4]), float(_words[5])])

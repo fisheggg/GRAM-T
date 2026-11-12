@@ -59,7 +59,7 @@ class ComputeSELDResults(object):
         for split in os.listdir(self._desc_dir):      
             for ref_file in os.listdir(os.path.join(self._desc_dir, split)):
                 # Load reference description file
-                gt_dict = self._feat_cls.load_output_format_file(os.path.join(self._desc_dir, split, ref_file))
+                gt_dict = self._feat_cls.load_output_format_file(os.path.join(self._desc_dir, split, ref_file), with_distance=True)
                 if not self._use_polar_format:
                     gt_dict = self._feat_cls.convert_output_format_polar_to_cartesian(gt_dict)
                 nb_ref_frames = max(list(gt_dict.keys()))
