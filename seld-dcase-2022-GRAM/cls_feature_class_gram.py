@@ -208,6 +208,11 @@ class FeatureClass:
     
     def _load_audio(self, audio_path):
         audio, fs = torchaudio.load(audio_path)
+        if fs != self._fs:
+            # SELD_combined holds the 24 kHz STARSS/DCASE audio; resample as the Fox features were
+            # (torchaudio.functional.resample defaults, as data/convert_starss_sr.py), before any scaling.
+            audio = torchaudio.functional.resample(audio, fs, self._fs)
+            fs = self._fs
         audio = audio[:self._nb_channels, :]
         if self._sn3d_to_n3d:
             audio = scale_dipoles_sn3d_to_n3d(audio)
