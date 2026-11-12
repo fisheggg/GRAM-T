@@ -1,0 +1,13 @@
+# final-pt-D0: GRAM-T + SPR pretraining with the "w_to_xyz" pretext.
+# Downstream: final-SELD-D0 (STARSS23 format as is) and final-SELD-D1 (corrected ambisonics format).
+# Run: sbatch scripts/train.sh --config-name final_pt_D0   (or bash scripts/submit_spr.sh D0 for all three jobs)
+defaults:
+  - spr                     # shared SPR settings: linear head, 200k steps, batch 80, seed 42
+  - _self_
+
+pretext_type: w_to_xyz
+save_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-D0/pretrain
+
+wandb:
+  name: final-pt-D0
+  group: final-D0

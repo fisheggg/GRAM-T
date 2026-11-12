@@ -152,6 +152,10 @@ def get_params(argv='1'):
         if str(run_cfg['task_id']) != argv:
             raise ValueError('{} is for task id {}, not {}'.format(os.environ['SELD_CONFIG'], run_cfg['task_id'], argv))
         params.update(run_cfg.get('params', {}))
+        if 'correct_ambi_format' in run_cfg:  # one switch for both STARSS23 conversions
+            if {'sn3d_to_n3d', 'swap_vertical_to_ch1'} & set(run_cfg.get('params', {})):
+                raise ValueError('set either correct_ambi_format or sn3d_to_n3d/swap_vertical_to_ch1, not both')
+            params['sn3d_to_n3d'] = params['swap_vertical_to_ch1'] = bool(run_cfg['correct_ambi_format'])
 
     # Per-run settings from the Slurm script (scripts/seld.sh) or the run config.
     run_dir = os.environ.get('SELD_RUN_DIR') or run_cfg.get('run_dir')

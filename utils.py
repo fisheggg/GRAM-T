@@ -9,11 +9,22 @@ networks = {"GRAM-T": GRAMT}
 
 
 def get_identity_from_cfg(cfg):
-    identity = "InChannels={}_Fraction={}_CleanDataFraction={}_".format(
-        cfg.data.get("in_channels"),
-        cfg.data.get("data_ratio"),
-        cfg.data.get("clean_data_ratio"),
-    )
+    if cfg.model == "GRAMT_SPR":
+        # identity of the archived SPR runs (saved_models_spr/PretextType=...)
+        identity = "PretextType={}_MultiTaskType={}_".format(
+            cfg.get("pretext_type"),
+            cfg.get("multitask_type"),
+        )
+        identity += "ReconLossW={}_SPRLossW={}_".format(
+            cfg.get("recon_loss_weight"),
+            cfg.get("spr_loss_weight"),
+        )
+    else:
+        identity = "InChannels={}_Fraction={}_CleanDataFraction={}_".format(
+            cfg.data.get("in_channels"),
+            cfg.data.get("data_ratio"),
+            cfg.data.get("clean_data_ratio"),
+        )
     identity += "Model={}_ModelSize={}_".format(
         cfg.model, cfg.model_size,
     )

@@ -1,0 +1,38 @@
+# GRAM-T + SPR pretraining (src/model/GRAMT_SPR.py).
+# Run: sbatch scripts/train.sh --config-name spr
+# Settings follow the archived Stage 3 GRAM+SPR runs: 200k steps, batch 80, seed 42.
+defaults:
+  - data: audioset_ambisonics
+  - optimizer: adamW          # lr 2e-4, betas (0.9, 0.95), weight decay 0.01
+  - trainer: default_trainer
+  - patching: frame
+  - _self_
+
+model: GRAMT_SPR
+model_size: base
+use_mwmae_decoder: True
+seed: 42
+# checkpoints: <save_dir>/saved_models_spr/PretextType=.../step=*.ckpt
+save_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/spr/pretrain
+
+# SPR: pseudo-label regression next to masked reconstruction
+pretext_type: pair        # w_to_xyz | orthogonal | pair | foa_to_iv
+multitask_type: linear    # linear: SPR head on the encoder; decoder: SPR from the decoder
+recon_loss_weight: 1.0
+spr_loss_weight: 1.0
+
+data:
+  clean_data_ratio: 0.0
+  mask_patch: 160
+
+trainer:
+  batch_size: 80
+  steps: 200000
+
+wandb:
+  enabled: true
+  entity: ritmo
+  project: ambi-ssl
+  name: spr
+  group: spr
+  mode: online

@@ -13,13 +13,13 @@ from omegaconf import OmegaConf
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from src.data_modules import WebAudioDataModule
-from src.model import GRAMT
+from src.model import GRAMT, GRAMT_SPR
 from src.masking import SpatialMaskMaker
 from src.patching import PatchStrategy
 from utils import get_identity_from_cfg
 
 
-networks = {"GRAM-T": GRAMT}
+networks = {"GRAM-T": GRAMT, "GRAMT_SPR": GRAMT_SPR}
 
 torch.set_float32_matmul_precision("medium")
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -37,6 +37,8 @@ def main(cfg):
     identity = get_identity_from_cfg(cfg)
     log_dir = f"{cfg.save_dir}/tb_logs_naturalistic_mixing_ambisonics" if cfg.data.in_channels == 7 else f"{cfg.save_dir}/tb_logs_naturalistic_mixing"
     save_dir = f"{cfg.save_dir}/saved_models_naturalistic_mixing_ambisonics/{identity.replace('_', '/')}" if cfg.data.in_channels == 7 else f"{cfg.save_dir}/saved_models_naturalistic_mixing/{identity.replace('_', '/')}"
+    if cfg.model == "GRAMT_SPR":  # checkpoint layout of the archived SPR runs
+        save_dir = f"{cfg.save_dir}/saved_models_spr/{identity.replace('_', '/')}"
     logger = [TensorBoardLogger(
         log_dir,
         name=identity.replace("_", "/"),
@@ -83,6 +85,15 @@ def main(cfg):
         else "auto",
     )
     Network: pl.LightningModule = networks[cfg.model]
+    spr_kwargs = {}
+    if cfg.model == "GRAMT_SPR":
+        print(f"=> Using {cfg.model}: pretext {cfg.pretext_type}, multitask {cfg.multitask_type}")
+        spr_kwargs = dict(
+            pseudolabel_type=cfg.pretext_type,
+            multitask_type=cfg.multitask_type,
+            w_recon_loss=cfg.recon_loss_weight,
+            w_spr_loss=cfg.spr_loss_weight,
+        )
     network_instance = Network(
         model_size=cfg.model_size,
         lr=cfg.optimizer.lr,
@@ -110,6 +121,7 @@ def main(cfg):
         sr=cfg.data.sr,
         compile_modules = cfg.trainer.compile_modules,
         clean_data_ratio = cfg.data.clean_data_ratio,
+        **spr_kwargs,
     )
 
     # Get the data iterator

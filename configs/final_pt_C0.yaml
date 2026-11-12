@@ -1,0 +1,13 @@
+# final-pt-C0: GRAM-T + SPR pretraining with the "orthogonal" pretext.
+# Downstream: final-SELD-C0 (STARSS23 format as is) and final-SELD-C1 (corrected ambisonics format).
+# Run: sbatch scripts/train.sh --config-name final_pt_C0   (or bash scripts/submit_spr.sh C0 for all three jobs)
+defaults:
+  - spr                     # shared SPR settings: linear head, 200k steps, batch 80, seed 42
+  - _self_
+
+pretext_type: orthogonal
+save_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-C0/pretrain
+
+wandb:
+  name: final-pt-C0
+  group: final-C0

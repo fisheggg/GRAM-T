@@ -1,0 +1,13 @@
+# final-pt-E0: GRAM-T + SPR pretraining with the "foa_to_iv" pretext.
+# Downstream: final-SELD-E0 (STARSS23 format as is) and final-SELD-E1 (corrected ambisonics format).
+# Run: sbatch scripts/train.sh --config-name final_pt_E0   (or bash scripts/submit_spr.sh E0 for all three jobs)
+defaults:
+  - spr                     # shared SPR settings: linear head, 200k steps, batch 80, seed 42
+  - _self_
+
+pretext_type: foa_to_iv
+save_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-E0/pretrain
+
+wandb:
+  name: final-pt-E0
+  group: final-E0

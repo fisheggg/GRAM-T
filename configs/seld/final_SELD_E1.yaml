@@ -1,0 +1,43 @@
+# final-SELD-E1: downstream SELD from the final-pt-E0 checkpoint (foa_to_iv SPR pretext).
+# STARSS23 converted to the pretraining convention (dipoles x sqrt(3), vertical into feature ch1).
+# Run: sbatch --job-name=final-SELD-E1 scripts/seld.sh configs/seld/final_SELD_E1.yaml
+# Read by seld-dcase-2022-GRAM/parameters.py; "params" replaces the task-id defaults.
+task_id: '20'
+experiment_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-E0
+pretrain_step: 200000          # encoder: <experiment_dir>/pretrain/**/step=200000.ckpt
+run_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-E0/seld_fix1      # models/, predictions/ (features: shared x86 cache, see parameters.py task 20)
+correct_ambi_format: true      # sets sn3d_to_n3d and swap_vertical_to_ch1
+
+wandb:
+  entity: ritmo
+  project: ambi-ssl
+  name: final-SELD-E1
+  group: final-E0
+
+params:
+  quick_test: false
+  seed: 42                     # random/numpy/torch seeded once before data and model, as in fox-replication
+  mode: dev
+  dataset: foa
+  # STARSS23 (90 real recordings) + 1,200 synthetic, at 32 kHz; train folds 1-3, val = test = fold 4
+  dataset_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/data/SELD_combined
+  dataset_year: '2022'         # STARSS22/23 splits and 13 classes
+
+  # features
+  fs: 32000
+  hop_len_s: 0.01
+  label_hop_len_s: 0.1
+  max_audio_len_s: 60
+  nb_mel_bins: 128
+  label_sequence_length: 20    # 2 s clips, 200 feature frames
+
+  # output and training
+  multi_accdoa: false          # single ACCDOA
+  batch_size: 512
+  micro_batch_size: 32         # gradient accumulation: same update as one batch of 512
+  lr: 0.0001                   # Adam
+  nb_epochs: 100               # validate every 3rd epoch; best val epoch is tested
+
+  # metrics
+  average: macro
+  lad_doa_thresh: 20

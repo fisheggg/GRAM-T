@@ -1,0 +1,13 @@
+# final-pt-B0: GRAM-T + SPR pretraining with the "pair" pretext.
+# Downstream: final-SELD-B0 (STARSS23 format as is) and final-SELD-B1 (corrected ambisonics format).
+# Run: sbatch scripts/train.sh --config-name final_pt_B0   (or bash scripts/submit_spr.sh B0 for all three jobs)
+defaults:
+  - spr                     # shared SPR settings: linear head, 200k steps, batch 80, seed 42
+  - _self_
+
+pretext_type: pair
+save_dir: /cluster/work/projects/nn8104k/jinyueg/ambi_ssl/runs/final-B0/pretrain
+
+wandb:
+  name: final-pt-B0
+  group: final-B0
