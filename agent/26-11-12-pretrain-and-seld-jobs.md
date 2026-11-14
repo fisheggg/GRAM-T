@@ -95,4 +95,26 @@ Real pretraining stalled before its first batch, with every process idle. fox-re
 
 ## Notes
 - Do not switch branches or edit the SELD files until both SELD jobs have started, because they run the working tree.
-- If pretraining fails or hits the 168 h limit, both SELD jobs stay pending with `DependencyNeverSatisfied`.
+- If pretraining fails or hits the 96 h limit, both SELD jobs stay pending with `DependencyNeverSatisfied`.
+
+## 26-11-13 Out-of-memory crash and resubmission
+- **Crash:** final-pt-A0 (2846118) was killed for exceeding its 128 GB memory limit after 2 h, around step 5500. Slurm cancelled final-SELD-A0 and A1 (2846119/2846120). The log shows a DataLoader worker bus error (no shared memory left) and two oom_kill events.
+- **Cause:** memory is not leaking; it sits at the limit. Cgroup samples of the running SPR jobs held steady over 6 minutes:
+  - about 54–65 GB of shared memory: the batches the 16 workers keep ready (prefetch 2), each holding 80 multichannel RIRs;
+  - about 55 GB of process memory.
+  - The `forkserver` workers no longer share the main process's memory, which adds about 40 GB over fox-replication's fork workers (fox peaked at 70–80 GB).
+  - Batch contents move usage by about 10 GB, so A0 died on a spike.
+- **Resubmitted** with `sbatch --mem=192G`, same code (`261b638`) and configs:
+  - final-pt-A0 **2857390**;
+  - final-SELD-A0 **2857391** and final-SELD-A1 **2857392**, both after 2857390.
+  - The node has 808 GB for 4 GPUs, and the accel partition does not bill for memory.
+  - The crashed run is still in wandb under the same name (run `pcwld9b6`).
+- **B0–E0 (2852514/17/20/23)** still run with 128 GB and peak at 123–127 GB, so they may hit the same crash. If one does, resume it from its last 25k-step checkpoint with 192 GB and resubmit its SELD jobs.
+- `scripts/train.sh` still requests 128 GB. Raise it before submitting new pretraining runs.
+
+## 26-11-14 SELD from intermediate checkpoints
+- Added `scripts/submit_seld_steps.sh` (also on `feature/spr`). It runs SELD from the 50k and 100k checkpoints as `final-SELD-A{0,1}-50k` and `-100k` in `runs/final-A0/seld_fix{0,1}_<N>k`.
+- Jobs:
+  - 50k: 2868912 / 2868913.
+  - 100k: 2868915 / 2868916, after `wait-A0-100k` 2868914, which waits for the 100k checkpoint of 2857390.
+- See `agent/26-11-12-spr-port.md` on `feature/spr` for all groups.

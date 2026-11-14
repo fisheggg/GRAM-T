@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=128G
+#SBATCH --mem=192G  # 128G ran out: forkserver workers + prefetched RIR batches peak near 128G
 #SBATCH --gpus-per-node=1
 #SBATCH --time=96:00:00
 #SBATCH --job-name=GRAMTi
