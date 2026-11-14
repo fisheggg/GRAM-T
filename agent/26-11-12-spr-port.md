@@ -56,3 +56,44 @@ The STARSS23 distance-column scoring fix found during the port was committed on 
 ## Checks
 - `configs/spr.yaml` composes with Hydra (also with the fixed overrides in `scripts/train.sh`) and resolves to the checkpoint path above.
 - GPU smoke test: see the result below.
+
+## 26-11-14 Out-of-memory crashes and resumed runs
+- **What stopped:** final-pt-B0 (2852514) and final-pt-D0 (2852520) were killed for exceeding their 128 GB memory limit at about 05:12 on Nov 14. Slurm cancelled their SELD jobs.
+  - **D0:** an oom_kill at step ~98k.
+  - **B0:** the out-of-memory killer took the RIR loader's manager process, so the queue connection broke (`EOFError`) at step ~105k.
+  - **Same cause as the A0 crash:** memory sits at about 115–127 GB, with no leak, and spikes push it over the limit (see the A0 report). All three crashes happened around 05:11–05:12, so something on the nodes at that hour may add the final push.
+- **Fix:** `scripts/train.sh` now requests 192 GB on both branches. Each node has 808 GB for 4 GPUs, and memory is not billed.
+- **Resumed** with `+ckpt_path=<checkpoint>` and `+wandb.id=<run id>`. `train.py` now passes `wandb.id` with `resume="allow"`, so the wandb run continues.
+
+| Run | Resumed from | New job | SELD fix off / on |
+|---|---|---|---|
+| final-pt-B0 | step 100000 (wandb f5gcf4ek) | 2868860 | 2868862 / 2868863 |
+| final-pt-D0 | step 75000 (wandb afwcctzg) | 2868861 | 2868864 / 2868865 |
+
+- **Effect on comparability:**
+  - Weights, optimizer and LR schedule continue from the checkpoint.
+  - B0 redoes steps 100k–105k and D0 redoes 75k–98k.
+  - `seed_everything` runs again at startup, so the data and augmentation streams restart from their beginning, not from where the first job stopped.
+- **C0 (2852517) and E0 (2852523)** are still running with 128 GB and are at the same risk.
+
+## 26-11-14 SELD from intermediate checkpoints (50k and 100k steps)
+- **Purpose:** see how many pretraining steps SELD needs. Both format variants run for each group at 50k and 100k steps, on top of the 200k runs.
+- **Script:** `scripts/submit_seld_steps.sh <G> <step>...`, on both branches. Each job uses the same yaml as the 200k run (`configs/seld/final_SELD_<G>{0,1}.yaml`) and overrides only three things:
+  - `GRAM_CKPT`: the encoder checkpoint;
+  - `SELD_RUN_DIR`: `runs/final-<G>0/seld_fix{0,1}_<N>k`;
+  - `SELD_WANDB_NAME`: `final-SELD-<G>{0,1}-<N>k`, in wandb group `final-<G>0`.
+- **Missing checkpoints:** a 1-CPU `wait-<G>0-<N>k` job waits on `small` until the checkpoint exists and its size has stopped changing; the SELD jobs start after it.
+- **Jobs submitted:**
+
+| Group | 50k (fix0 / fix1) | 100k (fix0 / fix1) |
+|---|---|---|
+| A0 | 2868912 / 2868913 | 2868915 / 2868916 (after wait-A0-100k 2868914) |
+| B0 | 2868917 / 2868918 | 2868919 / 2868920 |
+| C0 | 2868921 / 2868922 | 2868923 / 2868924 |
+| D0 | 2868925 / 2868926 | 2868928 / 2868929 (after wait-D0-100k 2868927) |
+| E0 | 2868930 / 2868931 | 2868932 / 2868933 |
+
+- **Caveats:**
+  - B0's 100k checkpoint is from the first job, just before it crashed.
+  - D0's 100k checkpoint will come from the resumed job (2868861).
+  - If a pretraining run dies before 100k, its waiter times out after 2 days and the SELD jobs for that step are cancelled.

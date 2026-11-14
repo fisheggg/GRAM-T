@@ -53,6 +53,9 @@ def main(cfg):
             mode=wandb_cfg.mode,
             save_dir=cfg.save_dir,
             config=OmegaConf.to_container(cfg, resolve=True),
+            # When resuming from ckpt_path, set wandb.id to continue the same wandb run.
+            id=wandb_cfg.get("id"),
+            resume="allow" if wandb_cfg.get("id") else None,
         ))
     checkpoint_callback = ModelCheckpoint(
         dirpath=save_dir,
